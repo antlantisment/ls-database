@@ -145,31 +145,46 @@ class DataBase {
             this.setByteT(dest+i, raw[i], table);
         }
     }
-    memcpy(src1, size, table1, src2, table2) {
+    memcmp(src1, size, table1, src2, table2) {
         for(let i = 0; i < size; i++) {
             if(this.getByteT(src1+i, table1) != this.getByteT(src2+i, table2)) return false;
         }
         return true;
     }
-    memcpy_raw(src1, size, table, raw) {
+    memcmp_raw(src1, size, table, raw) {
         for(let i = 0; i < size; i++) {
             if(this.getByteT(src1+i, table) != raw[i]) return false;
         }
         return true;
     }
-    strcpy(src1, table1, src2, table2) {
+    strcmp(src1, table1, src2, table2) {
         for(let i = 0; true; i++) {
             if(this.getByteT(src1+i, table1) != this.getByteT(src2+i, table2)) return false;
             if(this.getByteT(src1+i, table1) == 0 && this.getByteT(src2+i, table2) == 0) return true;
         }
     }
-    strcpy_raw(src, table, str) {
+    strcmp_raw(src, table, str) {
         for(let i = 0; true; i++) {
+            //console.log("STRCMP_RAW", this.getByteT(src+i, table), str.charCodeAt(i));
+            
             if(this.getByteT(src+i, table) == str.charCodeAt(i)) {
                 if(this.getByteT(src+i,table) == 0) return true;
             }
+            else if(this.getByteT(src+i, table) == 0 && !str.charCodeAt(i)) {
+                return true;
+            }
             else return false;
         }
+    }
+    extract_str(addr, table) {
+        let strout = "";
+        while(true) {
+            if(this.getByteT(addr, table) != 0) {
+                strout += String.fromCharCode(this.getByteT(addr, table));
+                addr++;
+            } else break;
+        }
+        return strout;
     }
 
     /*
@@ -210,21 +225,18 @@ class DataBase {
         }
         let key_ptr = this.cmalloc(key.length, malloc_ptr, table);
         let value_ptr = this.cmalloc(value.length, malloc_ptr, table);
-        this.meminsert(key_ptr, key.length, table, Buffer.from(key));
-        this.meminsert(value_ptr, value.length, table, Buffer.from(value));
+        this.meminsert(key_ptr, key.length+1, table, Buffer.from(key));
+        this.meminsert(value_ptr, value.length+1, table, Buffer.from(value));
         this.setWordT(addr, key_ptr, table);
         this.setWordT(addr+2, value_ptr, table);
     }
     table_get(key, table) {
-        for(let i = 0; true; i += 2) {
-            
+        for(let i = 0; true; i+=4 ) {
+            let data = this.getWordT(i, table);
+            if(this.getDWordT(i, table) == 0) return -1;
+            if(this.strcmp_raw(data, table, key)) {
+                return this.extract_str(this.getWordT(i+2, table), table);
+            }
         }
     }
 }
-
-let db = new DataBase("dta.bin");
-console.log(db);
-let tab = db.alloc_table(256);
-console.log(db);
-db.table_insert("h", "d", tab);
-console.log(db);
